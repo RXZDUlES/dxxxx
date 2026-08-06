@@ -26,100 +26,6 @@ if isfile and isfile("RXZ_HUB.json") then
     end
 end
 
--- Intro sound
-local introSoundInstance = nil
-local INTRO_SONGS = {
-    [1] = { url = "https://files.catbox.moe/43iq8z.mp3", file = "movee_intro1.mp3" },
-    [2] = { url = "https://files.catbox.moe/pg5ir9.mp3", file = "movee_intro2.mp3" },
-    [3] = { url = "https://files.catbox.moe/hg5cr4.mp3", file = "movee_intro3.mp3" },
-}
-if M.introSoundEnabled then
-    local song = INTRO_SONGS[M.introSongChoice] or INTRO_SONGS[3]
-    local ok, data = pcall(function() return game:HttpGet(song.url) end)
-    if ok and data then
-        pcall(function() writefile(song.file, data) end)
-    end
-    introSoundInstance = Instance.new("Sound")
-    pcall(function()
-        introSoundInstance.SoundId = getcustomasset(song.file)
-        introSoundInstance.Volume = 3
-        introSoundInstance.Looped = false
-        introSoundInstance.Parent = game:GetService("CoreGui")
-        introSoundInstance:Play()
-    end)
-end
-
--- INTRO GUI
-local function playIntroGUI()
-    if not M.introGUIEnabled then return end
-    local playerGui = player:WaitForChild("PlayerGui")
-    local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "RXZIntro"
-    screenGui.ResetOnSpawn = false
-    screenGui.Parent = playerGui
-
-    local function createText(text, size, yPos)
-        local label = Instance.new("TextLabel")
-        label.Text = text
-        label.TextSize = size
-        label.Font = Enum.Font.GothamBold
-        label.TextColor3 = Color3.new(1, 1, 1)
-        label.TextStrokeColor3 = Color3.new(0, 0, 0)
-        label.TextStrokeTransparency = 0.5
-        label.BackgroundTransparency = 1
-        label.TextTransparency = 1
-        label.Size = UDim2.new(0, 0, 0, size)
-        label.Position = UDim2.new(0.5, 0, yPos, 0)
-        label.AnchorPoint = Vector2.new(0.5, 0.5)
-        label.AutomaticSize = Enum.AutomaticSize.XY
-        label.Parent = screenGui
-        return label
-    end
-
-    local title = createText("RXZ HUB", 40, 0.48)
-    local line = Instance.new("Frame")
-    line.Size = UDim2.new(0, 150, 0, 2)
-    line.Position = UDim2.new(0.5, 0, 0.515, 0)
-    line.AnchorPoint = Vector2.new(0.5, 0.5)
-    line.BackgroundColor3 = Color3.new(1, 1, 1)
-    line.BackgroundTransparency = 1
-    line.BorderSizePixel = 0
-    line.Parent = screenGui
-    local subtitle = createText("MADE BY JAPAN AND MURDA", 14, 0.55)
-
-    local function fadeIn(object, property)
-        local tweenInfo = TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-        local goal = {[property] = 0}
-        local tween = TweenService:Create(object, tweenInfo, goal)
-        tween:Play()
-        return tween
-    end
-
-    local function fadeOut(object, property)
-        local tweenInfo = TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-        local goal = {[property] = 1}
-        local tween = TweenService:Create(object, tweenInfo, goal)
-        tween:Play()
-        return tween
-    end
-
-    task.wait(0.5)
-    fadeIn(title, "TextTransparency")
-    task.wait(0.5)
-    fadeIn(line, "BackgroundTransparency")
-    task.wait(0.3)
-    fadeIn(subtitle, "TextTransparency")
-    task.wait(2)
-    fadeOut(title, "TextTransparency")
-    fadeOut(line, "BackgroundTransparency")
-    fadeOut(subtitle, "TextTransparency")
-    task.wait(0.8)
-    screenGui:Destroy()
-end
-
-if M.introGUIEnabled then
-    playIntroGUI()
-end
 
 repeat task.wait() until game:IsLoaded()
 
@@ -659,7 +565,7 @@ M.bodyLockConn = nil
 
 -- Bypass Aimbot state (with modes)
 M.bypassAimbotEnabled = false
-M.bypassAimbotMode = "TPBat"  -- "Normal" or "TPBat"
+M.bypassAimbotMode = "Normal"
 M.bypassAimbotConn = nil
 M.bypassPrevAutoRotate = nil
 M.bypassHitCD = false
@@ -800,7 +706,7 @@ M.nukeOn = false
 M.removeAccEnabled = false
 M.removeAccConn = nil
 M.removedAccessories = {}
-M.uiScale = 1
+M.uiScale = 0.72
 M.uiScaleSliderRef = nil
 M.uiScaleLabelRef = nil
 M.uiScaleBoxRef = nil
@@ -2583,114 +2489,9 @@ end
 
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Argian-dotcom/Jdkffkfo/refs/heads/main/Coding"))()
 
--- TP Bat mode (existing teleport + sethiddenproperty)
-function M.startTPBatBypassAimbot()
-    if M.bypassAimbotConn then M.bypassAimbotConn:Disconnect() end
-
-    -- Pause MoveEngine while bypass aimbot controls movement
-    M.MoveEngine.stop()
-
-    local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
-    if hum and M.bypassPrevAutoRotate == nil then
-        M.bypassPrevAutoRotate = hum.AutoRotate
-    end
-    if hum then hum.AutoRotate = false end
-
-    -- Store references for the TP loop
-    local char = player.Character
-    M._bypassHRP = char and char:FindFirstChild("HumanoidRootPart")
-    M._bypassHum = hum
-
-    M.bypassAimbotConn = RunService.RenderStepped:Connect(function()
-        if not M.bypassAimbotEnabled or M.bypassAimbotMode ~= "TPBat" then return end
-
-        local char = player.Character
-        if not char then return end
-        local root = char:FindFirstChild("HumanoidRootPart")
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if not root or not hum then return end
-
-        if not char:FindFirstChildOfClass("Tool") then
-            local bat = _bypassFindBat()
-            if bat then pcall(function() hum:EquipTool(bat) end) end
-        end
-
-        local target, targetDist = _bypassGetClosest()
-        if not target then return end
-
-        local myPos = root.Position
-        local targetPos = target.Position
-
-        local direction = targetPos - myPos
-        local flatDir = Vector3.new(direction.X, 0, direction.Z)
-        if flatDir.Magnitude > 0 then flatDir = flatDir.Unit else flatDir = Vector3.zero end
-
-        local chaseSpeed = 58
-        local desiredHeight = targetPos.Y + 3.7
-        local yVel = (desiredHeight - myPos.Y) * 19.5
-        if hum.FloorMaterial ~= Enum.Material.Air then yVel = math.max(yVel, 13) end
-        yVel = math.clamp(yVel, -70, 110)
-
-        local desiredVel = Vector3.new(flatDir.X * chaseSpeed, yVel, flatDir.Z * chaseSpeed)
-        root.AssemblyLinearVelocity = root.AssemblyLinearVelocity:Lerp(desiredVel, 0.8)
-
-        local toTarget = targetPos - myPos
-        if toTarget.Magnitude > 0.1 then
-            local goalCF = CFrame.lookAt(myPos, targetPos)
-            local diffCF = root.CFrame:Inverse() * goalCF
-            local rx, ry, rz = diffCF:ToEulerAnglesXYZ()
-            rx = math.clamp(rx, -2.5, 2.5)
-            ry = math.clamp(ry, -2.5, 2.5)
-            rz = math.clamp(rz, -2.5, 2.5)
-            root.AssemblyAngularVelocity = root.CFrame:VectorToWorldSpace(Vector3.new(rx * 42, ry * 42, rz * 42))
-        end
-
-        if targetDist <= M.bypassHitDist then _bypassTrySwing() end
-    end)
-
-    -- TP Loop (teleportation + sethiddenproperty)
-    task.spawn(function()
-        while M.bypassAimbotEnabled and M.bypassAimbotMode == "TPBat" do
-            task.wait(0.05)
-            if not M.bypassAimbotEnabled or M.bypassAimbotMode ~= "TPBat" then break end
-            local target = _bypassGetClosest()
-            if not target then continue end
-            local hrp = M._bypassHRP
-            if not hrp then
-                local char = player.Character
-                hrp = char and char:FindFirstChild("HumanoidRootPart")
-                M._bypassHRP = hrp
-            end
-            if not hrp then continue end
-
-            -- Teleport if far
-            local targetPos = target.Position + Vector3.new(0, 0.9, 0)
-            if (hrp.Position - targetPos).Magnitude > 8 then
-                hrp:PivotTo(CFrame.new(targetPos))
-            end
-
-            -- Camera
-            local cam = workspace.CurrentCamera
-            if cam then
-                cam.CFrame = CFrame.new(cam.CFrame.Position, target.Position)
-            end
-
-            -- sethiddenproperty
-            if sethiddenproperty then
-                pcall(function()
-                    sethiddenproperty(hrp, "PhysicsRepRootPart", target)
-                end)
-            end
-        end
-    end)
-end
 
 function M.startBypassAimbot()
-    if M.bypassAimbotMode == "TPBat" then
-        M.startTPBatBypassAimbot()
-    else
-        M.startNormalBypassAimbot()
-    end
+    M.startNormalBypassAimbot()
 end
 
 function M.stopBypassAimbot()
@@ -4269,7 +4070,6 @@ local function loadCherryConfig()
         if d.bodyLockEnabled~=nil then M.bodyLockEnabled=d.bodyLockEnabled end
         if type(d.bodyLockRadius)=="number" then M.bodyLockRadius=d.bodyLockRadius end
         if d.bypassAimbotEnabled~=nil then M.bypassAimbotEnabled=d.bypassAimbotEnabled end
-        if d.bypassAimbotMode then M.bypassAimbotMode=d.bypassAimbotMode end
         if d.animPackEnabled~=nil then M.animPackEnabled=d.animPackEnabled end
         local function lk(e,d2)
             if type(d2)~="table" then return end
@@ -4488,13 +4288,12 @@ function M.buildGui()
 
     local main = Instance.new("ImageLabel")
     main.Name = "Main"
-    main.Size = UDim2.new(0, 380, 0, 560)
-    -- Move menu down: changed Y offset from -280 to -180
+    main.Size = UDim2.new(0, 450, 0, 520)
     main.Position = UDim2.new(0, 10, 0.5, -180)
     main.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
     main.BackgroundTransparency = 0.05
-    main.Image = ""
-    main.ImageTransparency = 1
+    main.Image = "rbxassetid://132826602147402"
+    main.ImageTransparency = 0.15
     main.ScaleType = Enum.ScaleType.Crop
     main.BorderSizePixel = 0
     main.Active = true
@@ -4516,7 +4315,7 @@ function M.buildGui()
     overlay.Name = "Overlay"
     overlay.Size = UDim2.new(1, 0, 1, 0)
     overlay.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    overlay.BackgroundTransparency = 0.15
+    overlay.BackgroundTransparency = 0.45
     overlay.BorderSizePixel = 0
     overlay.Parent = main
     local overlayCorner = Instance.new("UICorner")
@@ -4564,8 +4363,8 @@ function M.buildGui()
     -- CATEGORY TAB BAR (Speed / Combat / Steal / Movement / Visual / Settings / Keyboard)
     local tabBar = Instance.new("Frame")
     tabBar.Name = "TabBar"
-    tabBar.Size = UDim2.new(1, -20, 0, 34)
-    tabBar.Position = UDim2.new(0, 10, 0, 56)
+    tabBar.Size = UDim2.new(0, 92, 1, -64)
+    tabBar.Position = UDim2.new(0, 8, 0, 56)
     tabBar.BackgroundColor3 = Color3.fromRGB(8, 8, 8)
     tabBar.BackgroundTransparency = 0.2
     tabBar.BorderSizePixel = 0
@@ -4577,27 +4376,27 @@ function M.buildGui()
     tabScroll.BackgroundTransparency = 1
     tabScroll.BorderSizePixel = 0
     tabScroll.ScrollBarThickness = 0
-    tabScroll.ScrollingDirection = Enum.ScrollingDirection.X
-    tabScroll.AutomaticCanvasSize = Enum.AutomaticSize.X
+    tabScroll.ScrollingDirection = Enum.ScrollingDirection.Y
+    tabScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
     tabScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
     tabScroll.Active = true
     tabScroll.Parent = tabBar
     local tabLayout = Instance.new("UIListLayout")
-    tabLayout.FillDirection = Enum.FillDirection.Horizontal
-    tabLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+    tabLayout.FillDirection = Enum.FillDirection.Vertical
+    tabLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
     tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
     tabLayout.Padding = UDim.new(0, 4)
     tabLayout.Parent = tabScroll
     local tabPad = Instance.new("UIPadding")
-    tabPad.PaddingLeft = UDim.new(0, 6)
-    tabPad.PaddingRight = UDim.new(0, 6)
+    tabPad.PaddingTop = UDim.new(0, 6)
+    tabPad.PaddingBottom = UDim.new(0, 6)
     tabPad.Parent = tabScroll
 
     -- PAGE HOLDER
     local pageHolder = Instance.new("Frame")
     pageHolder.Name = "Pages"
-    pageHolder.Size = UDim2.new(1, 0, 1, -96)
-    pageHolder.Position = UDim2.new(0, 0, 0, 96)
+    pageHolder.Size = UDim2.new(1, -108, 1, -64)
+    pageHolder.Position = UDim2.new(0, 104, 0, 56)
     pageHolder.BackgroundTransparency = 1
     pageHolder.Parent = main
 
@@ -5164,23 +4963,6 @@ function M.buildGui()
     end)
     M.setBypassVisual = setBypassVis
 
-    -- Bypass Aimbot Mode selector
-    local _, getBypassMode, setBypassModeUI = createChoice("Bypass Mode", {"Normal","TP Bat"},
-        M.bypassAimbotMode == "TPBat" and 2 or 1,
-        function(v)
-            local newMode = (v == "TP Bat") and "TPBat" or "Normal"
-            if M.bypassAimbotMode ~= newMode then
-                M.bypassAimbotMode = newMode
-                if M.bypassAimbotEnabled then
-                    M.stopBypassAimbot()
-                    M.startBypassAimbot()
-                end
-                saveCherryConfig()
-            end
-        end
-    )
-    M.setBypassModeUI = setBypassModeUI
-
     local _, setAntiRag = createToggle("Anti Ragdoll", M.antiRagdollEnabled, function(on)
         M.antiRagdollEnabled = on
         if on then M.startAntiRagdoll() else M.stopAntiRagdoll() end
@@ -5365,25 +5147,6 @@ function M.buildGui()
         if on then M.enableAntiKick() else M.disableAntiKick() end
     end)
     M.antiKickSetVisual = setAntiKick
-
-    local _, setIntro = createToggle("Intro Song", M.introSoundEnabled, function(on)
-        M.introSoundEnabled = on
-        if not on and introSoundInstance and introSoundInstance.IsPlaying then
-            pcall(function() introSoundInstance:Stop() end)
-        end
-    end)
-
-    local _, setIntroGUI = createToggle("Intro GUI", M.introGUIEnabled, function(on)
-        M.introGUIEnabled = on
-    end)
-
-    local _, getIntroSong, setIntroSongUI = createChoice("Intro Song", {"Song 1","Song 2","Song 3"},
-        M.introSongChoice,
-        function(v)
-            local map = {["Song 1"]=1, ["Song 2"]=2, ["Song 3"]=3}
-            M.introSongChoice = map[v] or 3
-        end
-    )
 
     local _, setRagdollGui = createToggle("Ragdoll GUI", M.ragdollGuiEnabled, function(on)
         M.ragdollGuiEnabled = on
@@ -5656,7 +5419,7 @@ function M.buildGui()
         getPage(name)
         local b = Instance.new("TextButton")
         b.Name = "Tab_" .. name
-        b.Size = UDim2.new(0, 82, 0, 24)
+        b.Size = UDim2.new(0, 84, 0, 32)
         b.LayoutOrder = i
         b.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
         b.BorderSizePixel = 0
@@ -5710,9 +5473,6 @@ function M.buildGui()
     if M.autoRightSetVisual then M.autoRightSetVisual(M.autoRightEnabled) end
     if M.setAutoSwingVisual then M.setAutoSwingVisual(M.autoSwingEnabled) end
     if M.setBypassVisual then M.setBypassVisual(M.bypassAimbotEnabled) end
-    if M.setBypassModeUI then
-        M.setBypassModeUI(M.bypassAimbotMode == "TPBat" and "TP Bat" or "Normal")
-    end
     if M.mobBtnRefs.autoBat then M.mobBtnRefs.autoBat(M.autoBatEnabled) end
     if M.mobBtnRefs.autoLeft then M.mobBtnRefs.autoLeft(M.autoLeftEnabled) end
     if M.mobBtnRefs.autoRight then M.mobBtnRefs.autoRight(M.autoRightEnabled) end
@@ -5817,7 +5577,7 @@ function M.resetAllSettings()
     M.removeAccEnabled = false
     M.playerESPEnabled = false
     M.showPlayerSpeeds = false
-    M.uiScale = 1
+    M.uiScale = 0.72
     M.perButtonDragEnabled = true
     M.stealBarSize = 300
     M.lineESPEnabled = false
@@ -5829,7 +5589,7 @@ function M.resetAllSettings()
     M.bodyLockEnabled = false
     M.bodyLockRadius = 60
     M.bypassAimbotEnabled = false
-    M.bypassAimbotMode = "TPBat"
+M.bypassAimbotMode = "Normal"
     M.animPackEnabled = true
 
     M.stopAutoSteal()
