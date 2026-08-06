@@ -706,7 +706,7 @@ M.nukeOn = false
 M.removeAccEnabled = false
 M.removeAccConn = nil
 M.removedAccessories = {}
-M.uiScale = 0.55
+M.uiScale = 0.42
 M.uiScaleSliderRef = nil
 M.uiScaleLabelRef = nil
 M.uiScaleBoxRef = nil
@@ -1274,7 +1274,7 @@ function M.setupHeadIndicator(char)
     discordLbl.Size=UDim2.new(1,0,0.33,0)
     discordLbl.Position=UDim2.new(0,0,0.33,0)
     discordLbl.BackgroundTransparency=1
-    discordLbl.Text="discord.gg/k7hub"
+    discordLbl.Text=".gg/rxz"
     discordLbl.TextColor3=accent  -- teal
     discordLbl.Font=Enum.Font.GothamBold
     discordLbl.TextScaled=true
@@ -3687,7 +3687,7 @@ function M.buildMobileButtons()
     local BTN_GAP  = 8
     local PADDING  = 6
     local COLS     = 2
-    local ROWS     = 5  -- includes bypass button
+    local ROWS     = 4
 
     local PANEL_W = PADDING * 2 + COLS * BTN_SIZE + (COLS - 1) * BTN_GAP
     local PANEL_H = PADDING * 2 + ROWS * BTN_SIZE + (ROWS - 1) * BTN_GAP
@@ -3773,7 +3773,6 @@ function M.buildMobileButtons()
         {"carrySpeed", "CARRY\nSPEED", 1, 2, true},
         {"lagger", "LAGGER\nMODE", 0, 3, true},
         {"instaReset", "INSTA\nRESET", 1, 3, false},
-        {"bypass", "BYPASS", 0, 4, true},
     }
 
     local function createPanelButton(key, label, col, row, isToggle)
@@ -3909,6 +3908,73 @@ function M.buildMobileButtons()
     for _, def in ipairs(btnDefs) do
         createPanelButton(def[1], def[2], def[3], def[4], def[5])
     end
+
+    -- Separate floating BYPASS button (to the LEFT of the panel, next to Bat Aimbot row)
+    do
+        local savedBp = savedPositions["bypass"]
+        local defBpX = panelXO - BTN_SIZE - 12
+        local defBpY = panelYO + PADDING + 1 * (BTN_SIZE + BTN_GAP)
+
+        local bp = Instance.new("TextButton")
+        bp.Name = "Btn_bypass"
+        bp.Size = UDim2.new(0, BTN_SIZE, 0, BTN_SIZE)
+        bp.Position = UDim2.new(0, savedBp and savedBp.xo or defBpX, 0, savedBp and savedBp.yo or defBpY)
+        bp.BackgroundColor3 = BTN_OFF
+        bp.Text = "BYPASS"
+        bp.TextColor3 = TXT_OFF
+        bp.TextSize = 11
+        bp.Font = Enum.Font.GothamBold
+        bp.TextWrapped = true
+        bp.BorderSizePixel = 0
+        bp.ZIndex = 101
+        bp.AutoButtonColor = false
+        bp:SetAttribute("BtnKey", "bypass")
+        bp.Parent = mobGui
+        Instance.new("UICorner", bp).CornerRadius = UDim.new(0, CORNER_R)
+        M.bypassFloatingBtn = bp
+
+        local function bpSetOn(v)
+            TweenService:Create(bp, TweenInfo.new(0.12), {
+                BackgroundColor3 = v and CHERRY_ACCENT or BTN_OFF,
+                TextColor3 = v and TXT_ON or TXT_OFF,
+            }):Play()
+        end
+        M.mobBtnRefs.bypass = bpSetOn
+
+        local bpDrag = {dragging=false, start=nil, startPos=nil, moved=false}
+        bp.InputBegan:Connect(function(input)
+            if M.uiLocked then return end
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                bpDrag.dragging = true; bpDrag.moved = false
+                bpDrag.start = input.Position; bpDrag.startPos = bp.Position
+            end
+        end)
+        bp.InputChanged:Connect(function(input)
+            if bpDrag.dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                local delta = input.Position - bpDrag.start
+                if math.abs(delta.X) > 4 or math.abs(delta.Y) > 4 then bpDrag.moved = true end
+                bp.Position = UDim2.new(0, bpDrag.startPos.X.Offset + delta.X, 0, bpDrag.startPos.Y.Offset + delta.Y)
+            end
+        end)
+        bp.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                if bpDrag.dragging then
+                    bpDrag.dragging = false
+                    if bpDrag.moved then M.saveBtnPositions() end
+                end
+            end
+        end)
+
+        bp.Activated:Connect(function()
+            if bpDrag.moved then return end
+            M.toggleBypassAimbot()
+            bpSetOn(M.bypassAimbotEnabled)
+            if M.setBypassVisual then M.setBypassVisual(M.bypassAimbotEnabled) end
+            saveCherryConfig()
+        end)
+    end
+
+
 
     if M.mobBtnRefs.autoLeft then M.mobBtnRefs.autoLeft(M.autoLeftEnabled) end
     if M.mobBtnRefs.autoRight then M.mobBtnRefs.autoRight(M.autoRightEnabled) end
@@ -4211,7 +4277,7 @@ function M.buildGui()
 
     local main = Instance.new("ImageLabel")
     main.Name = "Main"
-    main.Size = UDim2.new(0, 380, 0, 430)
+    main.Size = UDim2.new(0, 380, 0, 420)
     main.Position = UDim2.new(0, 10, 0.5, -180)
     main.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
     main.BackgroundTransparency = 0.05
@@ -5500,7 +5566,7 @@ function M.resetAllSettings()
     M.removeAccEnabled = false
     M.playerESPEnabled = false
     M.showPlayerSpeeds = false
-    M.uiScale = 0.55
+    M.uiScale = 0.42
     M.perButtonDragEnabled = true
     M.stealBarSize = 300
     M.lineESPEnabled = false
