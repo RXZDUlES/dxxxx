@@ -706,7 +706,7 @@ M.nukeOn = false
 M.removeAccEnabled = false
 M.removeAccConn = nil
 M.removedAccessories = {}
-M.uiScale = 0.72
+M.uiScale = 0.55
 M.uiScaleSliderRef = nil
 M.uiScaleLabelRef = nil
 M.uiScaleBoxRef = nil
@@ -3687,7 +3687,7 @@ function M.buildMobileButtons()
     local BTN_GAP  = 8
     local PADDING  = 6
     local COLS     = 2
-    local ROWS     = 4  -- removed bypass button
+    local ROWS     = 5  -- includes bypass button
 
     local PANEL_W = PADDING * 2 + COLS * BTN_SIZE + (COLS - 1) * BTN_GAP
     local PANEL_H = PADDING * 2 + ROWS * BTN_SIZE + (ROWS - 1) * BTN_GAP
@@ -3773,6 +3773,7 @@ function M.buildMobileButtons()
         {"carrySpeed", "CARRY\nSPEED", 1, 2, true},
         {"lagger", "LAGGER\nMODE", 0, 3, true},
         {"instaReset", "INSTA\nRESET", 1, 3, false},
+        {"bypass", "BYPASS", 0, 4, true},
     }
 
     local function createPanelButton(key, label, col, row, isToggle)
@@ -3886,6 +3887,11 @@ function M.buildMobileButtons()
                     M.laggerModeBtn.Text = M.laggerModeEnabled and "Lag On" or "Lag Off"
                 end
                 saveCherryConfig()
+            elseif key == "bypass" then
+                M.toggleBypassAimbot()
+                setOn(M.bypassAimbotEnabled)
+                if M.setBypassVisual then M.setBypassVisual(M.bypassAimbotEnabled) end
+                saveCherryConfig()
             elseif key == "carrySpeed" then
                 M.toggleCarryMode()
                 setOn(M.carrySpeedActive)
@@ -3910,90 +3916,7 @@ function M.buildMobileButtons()
     if M.mobBtnRefs.lagger then M.mobBtnRefs.lagger(M.laggerModeEnabled) end
     if M.mobBtnRefs.carrySpeed then M.mobBtnRefs.carrySpeed(M.carrySpeedActive) end
 
-    -- Create separate draggable bypass button placed to the LEFT of Bat Aimbot button (outside panel)
-    -- Bat Aimbot is at col=0, row=1, so its left edge is at panelXO + PADDING.
-    -- We place bypass button to the left: X = panelXO + PADDING - BTN_SIZE - 5
-    -- Y = same as Bat Aimbot: panelYO + PADDING + BTN_SIZE + BTN_GAP
-    local batBtnX = panelXO + PADDING  -- left edge of Bat Aimbot
-    local batBtnY = panelYO + PADDING + BTN_SIZE + BTN_GAP
-    local bypassX = batBtnX - BTN_SIZE - 5
-    local bypassY = batBtnY
-
-    local bypassBtn = Instance.new("TextButton")
-    bypassBtn.Name = "BypassBtn"
-    bypassBtn.Size = UDim2.new(0, BTN_SIZE, 0, BTN_SIZE)
-    -- Check if saved position exists for bypass
-    if savedPositions["bypass"] then
-        local sp = savedPositions["bypass"]
-        bypassBtn.Position = UDim2.new(sp.xs or 0, sp.xo or 0, sp.ys or 0, sp.yo or 0)
-    else
-        bypassBtn.Position = UDim2.new(0, bypassX, 0, bypassY)
-    end
-    bypassBtn.BackgroundColor3 = BTN_OFF
-    bypassBtn.Text = "BYPASS"
-    bypassBtn.TextColor3 = TXT_OFF
-    bypassBtn.TextSize = 11
-    bypassBtn.Font = Enum.Font.GothamBold
-    bypassBtn.TextWrapped = true
-    bypassBtn.BorderSizePixel = 0
-    bypassBtn.ZIndex = 101
-    bypassBtn.AutoButtonColor = false
-    bypassBtn:SetAttribute("BtnKey", "bypass")
-    bypassBtn.Parent = mobGui
-    Instance.new("UICorner", bypassBtn).CornerRadius = UDim.new(0, CORNER_R)
-
-    local bypassOn = M.bypassAimbotEnabled
-    local function setBypassOn(v)
-        bypassOn = v
-        if v then
-            TweenService:Create(bypassBtn, TweenInfo.new(0.12), {
-                BackgroundColor3 = CHERRY_ACCENT,  -- teal
-                TextColor3 = TXT_ON,               -- black
-            }):Play()
-        else
-            TweenService:Create(bypassBtn, TweenInfo.new(0.12), {
-                BackgroundColor3 = BTN_OFF,
-                TextColor3 = TXT_OFF,
-            }):Play()
-        end
-    end
-    M.mobBtnRefs.bypass = setBypassOn
-    setBypassOn(bypassOn)
-
-    -- Make bypass button draggable
-    local bDragInfo = {dragging = false, start = nil, startPos = nil}
-    bypassBtn.InputBegan:Connect(function(input)
-        if M.uiLocked then return end
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            bDragInfo.dragging = true
-            bDragInfo.start = input.Position
-            bDragInfo.startPos = bypassBtn.Position
-        end
-    end)
-    bypassBtn.InputChanged:Connect(function(input)
-        if bDragInfo.dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-            local delta = input.Position - bDragInfo.start
-            bypassBtn.Position = UDim2.new(bDragInfo.startPos.X.Scale, bDragInfo.startPos.X.Offset + delta.X,
-                                           bDragInfo.startPos.Y.Scale, bDragInfo.startPos.Y.Offset + delta.Y)
-        end
-    end)
-    bypassBtn.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            if bDragInfo.dragging then
-                bDragInfo.dragging = false
-                M.saveBtnPositions()
-            end
-        end
-    end)
-
-    bypassBtn.Activated:Connect(function()
-        M.toggleBypassAimbot()
-        setBypassOn(M.bypassAimbotEnabled)
-        if M.setBypassVisual then M.setBypassVisual(M.bypassAimbotEnabled) end
-        saveCherryConfig()
-    end)
-
-    M.bypassFloatingBtn = bypassBtn
+    if M.mobBtnRefs.bypass then M.mobBtnRefs.bypass(M.bypassAimbotEnabled) end
 end
 
 -- ============================================================
@@ -4288,7 +4211,7 @@ function M.buildGui()
 
     local main = Instance.new("ImageLabel")
     main.Name = "Main"
-    main.Size = UDim2.new(0, 450, 0, 520)
+    main.Size = UDim2.new(0, 380, 0, 430)
     main.Position = UDim2.new(0, 10, 0.5, -180)
     main.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
     main.BackgroundTransparency = 0.05
@@ -5577,7 +5500,7 @@ function M.resetAllSettings()
     M.removeAccEnabled = false
     M.playerESPEnabled = false
     M.showPlayerSpeeds = false
-    M.uiScale = 0.72
+    M.uiScale = 0.55
     M.perButtonDragEnabled = true
     M.stealBarSize = 300
     M.lineESPEnabled = false
